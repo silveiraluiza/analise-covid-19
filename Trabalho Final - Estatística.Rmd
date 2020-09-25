@@ -1,0 +1,261 @@
+---
+title: "Covid-19 Contaminação - João Pessoa"
+author: "Luiza Carvalho"
+date: "24/09/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("datetime")
+library("ggplot2")
+library("dplyr")
+library("nortest")
+
+```
+# Análise Exploratória
+
+## Importando os dados
+
+
+```{r}
+br <- read.csv("/Users/_nxtusr/Documents/covid_br.csv", sep=';', stringsAsFactors = FALSE)
+jp <- read.csv("/Users/_nxtusr/Documents/covid_jp.csv", sep = ';')
+cg <- read.csv("/Users/_nxtusr/Documents/covid_cg.csv", sep = ';')
+
+```
+
+## Visualização de Dados - Cenário Brasileiro
+
+```{r  , echo=FALSE}
+
+ggplot(br, aes(x = data, y = casosAcumulado, group = 1, color = "red")) +  geom_line() + labs(x = "Dias", y = "Quantidade", title = "Casos Acumulados - Brasil") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+```{r  , echo=FALSE}
+
+ggplot(br, aes(x = data, y = casosNovos, group = 1, color = "red")) +  geom_line() + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - Brasil") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+```{r  , echo=FALSE}
+
+ggplot(br, aes(x = semanaEpi, y = casosNovos, group= semanaEpi)) +  geom_boxplot(color=  "red") + labs(x = "Semanas", y = "Quantidade", title = "Casos Novos x Semanas - Brasil") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+
+
+## Visualização de Dados - Cenário João Pessoa
+
+```{r  , echo=FALSE}
+
+ggplot(jp, aes(x = data, y = casosAcumulado, group = 1)) +  geom_line(color = "blue") + labs(x = "Dias", y = "Quantidade", title = "Casos Acumulados - João Pessoa") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+```{r  , echo=FALSE}
+
+ggplot(br, aes(x = data, y = casosNovos, group = 1)) +  geom_line(color = "blue") + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - João Pessoa") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+```{r  , echo=FALSE}
+
+ggplot(jp, aes(x = semanaEpi, y = casosNovos, group= semanaEpi)) +  geom_boxplot(color=  "blue") + labs(x = "Semanas", y = "Quantidade", title = "Casos Novos x Semanas - João Pessoa") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+# Panorama Brasileiro
+
+## Brasil: Separando os dados entre os 80 primeiros dias e os 80 ultimos dias
+
+```{r}
+
+br$data <- as.Date(br$data , format = "%Y-%m-%d")
+jp$data <- as.Date(jp$data , format = "%Y-%m-%d")
+
+br_antes <- br %>% filter(data <= "2020-05-14")
+br_depois <- br %>% filter(data > "2020-07-04")
+```
+
+### Casos Novos  80 primeiros dias - Brasil 
+
+```{r , echo=FALSE}
+
+ggplot(br_antes, aes(x = data, y = casosNovos, group = 1, color = "red")) +  geom_line() + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - Brasil") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+### Casos Novos  80 últimos dias - Brasil 
+
+```{r  , echo=FALSE}
+
+ggplot(br_depois, aes(x = data, y = casosNovos, group = 1, color = "red")) +  geom_line() + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - Brasil") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+
+## Testes de Aderência de Anderson-Darling para os dados brasileiros
+
+No caso de pequenas amostras (n<30) o teste de Shapiro-Wilk é mais apropriado que o teste K-S, no entanto como nossa amostra é de n > 30 e  a média e o desvio padrão da população são conhecidos, por isso em tese poderiamos utilizar o teste de Kolmogorov Smirnov, no entanto ao tentar utilizá-lo recebemos a seguinte mensagem de erro: "ties should not be present for the Kolmogorov-Smirnov test", que nos informa que valores repetidos não podem estar presentes no teste de Kolmogorov Smirnov. Portanto iremos utilizar o teste de Anderson-Darling, onde:
+
+H0: a amostra é selecionada de uma população que segue a distribuição normal
+
+H1: a amostra selecionada da população não segue a distribuição normal
+
+
+###  80 primeiros dias
+
+```{r}
+ad.test(br_antes$casosNovos)
+```
+
+A nossa estatística de teste A é igual a 6.5802 e o valor p correspondente é igual a 2.786e-16. Uma vez que o nosso valor p é inferior a 0.05, podemos rejeitar a hipótese nula e concluir que temos provas suficientes para dizer que estes dados não seguem uma distribuição normal.
+
+###  80 últimos dias
+```{r}
+
+ad.test(br_depois$casosNovos)
+
+```
+
+A nossa estatística de teste A é igual a 1.1324 e o valor p correspondente é igual a 0.005462. Uma vez que o nosso valor p é inferior a 0.05, podemos rejeitar a hipótese nula e concluir que temos provas suficientes para dizer que estes dados não seguem uma distribuição normal.
+
+## Teste de Hipóteses
+
+### t-emparelhado
+
+H0: μantes = μantes (ou μΔ = 0)
+
+H1: μantes > μdepois
+
+```{r}
+
+t.test(br_antes$casosNovos, br_depois$casosNovos, paired = T, alternative = "greater")
+
+```
+
+Não é possível rejeitar H0 em favor de H1, pois p-value é maior que 0,05.
+
+
+### Teste de Hipótese (Wilcoxon)
+
+
+H0: μantes = μantes (ou μΔ = 0)
+
+H1: μantes > μdepois
+
+
+```{r}
+
+wilcox.test(br_antes$casosNovos, br_depois$casosNovos, paired = T, alternative = "greater")
+
+```
+
+Não é possível rejeitar H0 em favor de H1, pois p-value é maior que 0,05.
+
+## Conclusão
+
+A média de casos novos de covid no Brasil não pode ser considerada menor nos últimos 80 dias do que a média de casos de covid nos primeiros  80 dias.
+
+# Para o caso de João Pessoa
+
+### João Pessoa: Separando os dados entre os  80 primeiros dias e os  80 últimos dias
+
+```{r}
+
+jp_antes <- jp %>% filter(data <= "2020-06-14")
+jp_depois <- jp %>% filter(data > "2020-07-04")
+
+```
+
+### Casos Novos  80 primeiros dias - João Pessoa 
+
+```{r, echo=FALSE}
+
+ggplot(jp_antes, aes(x = data, y = casosNovos, group = 1)) +  geom_line(color = "blue") + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - João Pessoa") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+### Casos Novos  80 últimos dias - João Pessoa 
+
+```{r , echo=FALSE}
+
+ggplot(jp_depois, aes(x = data, y = casosNovos, group = 1)) +  geom_line(color = "blue") + labs(x = "Dias", y = "Quantidade", title = "Casos Novos - João Pessoa") + theme( axis.text.x = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+```
+
+
+
+## Testes de Aderência de Anderson-Darling para os dados de João Pessoa
+
+No caso de pequenas amostras (n<30) o teste de Shapiro-Wilk é mais apropriado que o teste K-S, no entanto como nossa amostra é de n > 30 e  a média e o desvio padrão da população são conhecidos, por isso em tese poderiamos utilizar o teste de Kolmogorov Smirnov, no entanto ao tentar utilizá-lo recebemos a seguinte mensagem de erro: "ties should not be present for the Kolmogorov-Smirnov test", que nos informa que valores repetidos não podem estar presentes no teste de Kolmogorov Smirnov. Portanto iremos utilizar o teste de Anderson-Darling, onde:
+
+H0: a amostra é selecionada de uma população que segue a distribuição normal
+
+H1: a amostra selecionada da população não segue a distribuição normal
+
+
+###  80 primeiros dias
+
+```{r}
+ad.test(jp_antes$casosNovos)
+```
+
+A nossa estatística de teste A é igual a 5.6762 e o valor p correspondente é igual a 4.139e-14. Uma vez que o nosso valor p é inferior a 0.05, podemos rejeitar a hipótese nula e concluir que temos provas suficientes para dizer que estes dados não seguem uma distribuição normal.
+
+###  80 últimos dias
+```{r}
+
+ad.test(jp_depois$casosNovos)
+
+```
+
+A nossa estatística de teste A é igual a 1.0571 e o valor p correspondente é igual a 0.008406. Uma vez que o nosso valor p é inferior a 0.05, podemos rejeitar a hipótese nula e concluir que temos provas suficientes para dizer que estes dados não seguem uma distribuição normal.
+
+
+## Teste de Hipóteses
+
+### t-emparelhado
+
+H0: μantes = μdepois (ou μΔ = 0)
+
+H1: μantes > μdepois
+
+```{r}
+
+t.test(jp_antes$casosNovos, jp_depois$casosNovos, paired = T, alternative = "greater")
+
+```
+
+Não é possível rejeitar H0 em favor de H1, pois p-value é maior que 0,05.
+
+
+### Teste de Hipótese (Wilcoxon)
+
+H0: μantes = μdepois (ou μΔ = 0)
+
+H1: μantes > μdepois
+
+```{r}
+
+wilcox.test(jp_antes$casosNovos, jp_depois$casosNovos, paired = T, alternative = "greater")
+
+```
+
+Não é possível rejeitar H0 em favor de H1, pois p-value é maior que 0,05.
+
+
+## Conclusão
+
+A média de casos novos de covid em João Pessoa não pode ser considerada menor nos últimos 80 dias do que a média de casos de covid nos primeiros 80 dias.
